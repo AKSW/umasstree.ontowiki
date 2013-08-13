@@ -35,8 +35,21 @@ class UmasstreeController extends OntoWiki_Controller_Component
         // disable layout for Ajax requests
         $this->_helper->layout()->disableLayout();
 
-        // provide the tree data
-        $this->_treeData = $this->_getTreeData();
+        // provide the tree data, maybe the cached one
+        $queryCache  = OntoWiki::getInstance()->erfurt->getQueryCache();
+        $objectCache = OntoWiki::getInstance()->erfurt->getCache();
+        $cacheId = 'umasstree' . md5($this->_model);
+        $cachedData = $objectCache->load($cacheId);
+        if ($cachedData === false) {
+            // no cache hit, start transaction and querying
+            $queryCache->startTransaction($cacheId);
+            $this->_treeData = $this->_getTreeData();
+            $objectCache->save($this->_treeData, $cacheId);
+            $queryCache->endTransaction($cacheId);
+        } else {
+            // cache hit, yeah everything available
+            $this->_treeData = $cachedData;
+        }
 
         $response = $this->getResponse();
         $response->setHeader('Content-Type', 'application/json');
